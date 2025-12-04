@@ -25,7 +25,7 @@ private:
         active_workers.fetch_add(1, std::memory_order_relaxed);
         
         int idle_loops = 0;
-        const int MAX_IDLE_LOOPS = 1000;  // Increased for slow startup
+        const int MAX_IDLE_LOOPS = 1000; 
         
         while (!termination_requested.load(std::memory_order_relaxed)) {
             Task* task = task_pool.pop();
@@ -34,19 +34,19 @@ private:
                 idle_loops++;
                 idle_threads.fetch_add(1, std::memory_order_relaxed);
                 
-                // Check if all threads are idle and pool is empty
+                
                 if (idle_threads.load() >= _num_threads && task_pool.empty()) {
-                    // All threads idle, nothing to do
+                    
                     idle_threads.fetch_sub(1, std::memory_order_relaxed);
                     break;
                 }
                 
-                // Sleep a bit to avoid busy waiting
+               
                 std::this_thread::sleep_for(std::chrono::microseconds(100));
                 idle_threads.fetch_sub(1, std::memory_order_relaxed);
                 
                 if (idle_loops > MAX_IDLE_LOOPS) {
-                    // Been idle too long, exit
+                    
                     break;
                 }
                 
@@ -54,20 +54,20 @@ private:
                 continue;
             }
             
-            idle_loops = 0;  // Reset idle counter
-            idle_threads.store(0, std::memory_order_relaxed);  // Reset idle threads
+            idle_loops = 0;  
+            idle_threads.store(0, std::memory_order_relaxed);  
             
-            // Process the task
+           
             int n = task->split(&task_pool);
             tasks_created.fetch_add(n, std::memory_order_relaxed);
             
             if (n > 0) {
-                // Task was split
+                
                 task->merge(&task_pool);
-                // The task itself is not needed anymore
+                
                 delete task;
             } else {
-                // Leaf task - solve directly
+                
                 task->solve();
                 delete task;
             }
@@ -100,41 +100,41 @@ public:
     }
     
     virtual void run(Task* root_task) override {
-        // Reset state
+        
         termination_requested.store(false, std::memory_order_relaxed);
         tasks_processed.store(0, std::memory_order_relaxed);
         tasks_created.store(0, std::memory_order_relaxed);
         idle_threads.store(0, std::memory_order_relaxed);
         
-        // Clear any old tasks
+        
         task_pool.clear();
         
-        // Push root task
+        
         std::cout << "Pushing root task to pool\n";
         task_pool.push(root_task);
         tasks_created.store(1, std::memory_order_relaxed);
         
-        // Start timer
+        
         startTimer();
         
-        // Create worker threads
+       
         std::cout << "Creating " << _num_threads << " worker threads\n";
         
         for (int i = 0; i < _num_threads; ++i) {
             workers.emplace_back(&ParallelTaskRunner::worker_function, this, i);
         }
         
-        // Wait for all workers to finish
+        
         for (auto& worker : workers) {
             if (worker.joinable()) {
                 worker.join();
             }
         }
         
-        // Clear workers vector for next run
+        
         workers.clear();
         
-        // Stop timer
+        
         stopTimer();
         
         std::cout << "All threads finished. Processed " << tasks_processed.load() 
@@ -152,13 +152,13 @@ public:
         workers.clear();
     }
     
-    // Statistics getters
+    
     int getTasksProcessed() const { return tasks_processed.load(); }
     int getTasksCreated() const { return tasks_created.load(); }
     int getActiveWorkers() const { return active_workers.load(); }
     
-    // REMOVE OR FIX getParallelEfficiency() - it needs seq_time parameter
-    // For now, just remove it since we don't have total_time member
+    
+   
     /*
     float getParallelEfficiency() const {
         double seq_time = total_time;  // ERROR: total_time doesn't exist!
@@ -169,4 +169,4 @@ public:
     */
 };
 
-#endif // PARALLEL_TASK_RUNNER_HPP
+#endif 

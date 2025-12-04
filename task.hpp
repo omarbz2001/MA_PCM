@@ -3,8 +3,8 @@
 
 #include <iostream>
 #include <chrono>
-#include <vector>  // ADD THIS LINE
-#include <stdexcept>  // ADD THIS TOO
+#include <vector>  
+#include <stdexcept>  
 
 class TaskCollection;
 
@@ -29,7 +29,7 @@ public:
 	virtual void push(Task* t) = 0;
 	virtual Task* pop() = 0;
 	virtual void clear() = 0;
-    virtual ~TaskCollection() = default;  // ADD VIRTUAL DESTRUCTOR
+    virtual ~TaskCollection() = default;  
 };
 
 class TaskStack : public TaskCollection {
@@ -82,7 +82,7 @@ public:
 	virtual ~TaskRunner() = default;
 	double duration() const {
 		std::chrono::duration<double> diff = _stop - _start;
-		return diff.count();   // seconds as a double
+		return diff.count();   
 	}
 protected:
 	void startTimer() { _start = std::chrono::high_resolution_clock::now(); }
@@ -118,7 +118,7 @@ private:
 			t->solve();
 		}
 	}
-	PartitionedTaskStackRunner() {} // cannot use default constructor
+	PartitionedTaskStackRunner() {} 
 public:
 	PartitionedTaskStackRunner(int size) : _size(size), _splits(0), _solves(0) {}
 	virtual void run(Task* t) override {
@@ -131,4 +131,4 @@ public:
 	}
 };
 
-#endif // TASK_HPP  // ADD HEADER GUARD
+#endif 

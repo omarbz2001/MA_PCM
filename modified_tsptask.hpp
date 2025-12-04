@@ -10,10 +10,10 @@
 #include "task.hpp"
 #include "lockfree_stack.hpp"
 
-// Forward declaration
+
 class TSPPath;
 
-// DECLARE the output operator here (BEFORE the class)
+
 std::ostream& operator<<(std::ostream& os, const TSPPath& t);
 
 class TSPPath {
@@ -34,7 +34,7 @@ public:
     }
     static int full() { return _graph->size(); }
     
-    // ADD PUBLIC ACCESSOR
+   
     static int graphDistance(int a, int b) {
         return _graph->distance(a, b);
     }
@@ -94,7 +94,7 @@ public:
     }
 };
 
-// DEFINE the output operator here (AFTER the class)
+
 inline std::ostream& operator<<(std::ostream& os, const TSPPath& t) {
     t.write(os);
     return os;
@@ -212,7 +212,7 @@ public:
     }
 
     void write(std::ostream& os) const override {
-        os << "Task" << _path;  // Now this will work!
+        os << "Task" << _path;  
     }
 };
 
@@ -222,4 +222,4 @@ TSPPath ModifiedTSPTask::best_path;
 std::mutex ModifiedTSPTask::best_path_mutex;
 int ModifiedTSPTask::_cutoff_size = INT_MAX;
 
-#endif // MODIFIED_TSPTASK_HPP
+#endif 

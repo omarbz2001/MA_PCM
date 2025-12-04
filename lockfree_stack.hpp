@@ -16,7 +16,7 @@ struct TaggedPointer {
     }
 };
 
-// Convert tagged pointer to uintptr_t for atomic operations
+
 template<typename T>
 union TaggedUint {
     TaggedPointer<T> tagged;
@@ -54,7 +54,7 @@ public:
     }
     
     ~LockFreeStack() override {
-        // Free remaining nodes (simplified)
+        // Free remaining nodes
         uintptr_t current = head.load(std::memory_order_relaxed);
         if (current != 0) {
             LockFreeNode* node = TaggedUint<LockFreeNode>(current).tagged.ptr;
@@ -62,13 +62,13 @@ public:
         }
     }
     
-    // TaskCollection interface
+    
     int size() const override {
         return static_cast<int>(size_counter.load(std::memory_order_relaxed));
     }
     
     Task* operator[](int i) override {
-        // Not efficient for lock-free stack - avoid using this
+       
         throw std::runtime_error("Index operator not supported for lock-free stack");
         return nullptr;
     }
@@ -122,15 +122,15 @@ public:
     }
     
     void clear() override {
-        // For lock-free stack, we just reset
+        
         head.store(0, std::memory_order_relaxed);
         size_counter.store(0, std::memory_order_relaxed);
     }
     
-    // Additional helper
+    
     bool empty() const {
         return size() == 0;
     }
 };
 
-#endif // LOCKFREE_STACK_HPP
+#endif 

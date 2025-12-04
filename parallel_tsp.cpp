@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     
     double parallel_time = std::chrono::duration<double>(end_time - start_time).count();
     
-    // Get results
+    
     TSPPath best_path = tsp_task->result();
     
     std::cout << "\n=== PARALLEL RESULTS ===" << std::endl;
@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
     std::cout << "Tasks processed: " << parallel_runner.getTasksProcessed() << std::endl;
     std::cout << "Tasks created: " << parallel_runner.getTasksCreated() << std::endl;
     
-    // For comparison, run sequential version too
+    
     std::cout << "\nRunning sequential version for comparison..." << std::endl;
     
     ModifiedTSPTask seq_task(0);
