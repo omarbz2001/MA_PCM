@@ -1,6 +1,9 @@
 #include <iostream>
 #include <iomanip>
 #include <chrono>
+#include <thread>
+#include <cstdlib>
+
 #include "modified_tsptask.hpp"
 #include "parallel_task_runner.hpp"
 
@@ -21,61 +24,61 @@ int main(int argc, char** argv) {
         std::cout << "Using " << num_threads << " threads (auto-detected)\n";
     }
 
-    // Load and setup graph
+    // Load graph
     std::cout << "Loading TSP file: " << filename << std::endl;
     TSPGraph graph(filename);
-    
+
     if (num_cities > 0 && num_cities < graph.size()) {
         graph.resize(num_cities);
     }
-    
+
     std::cout << "Graph size: " << graph.size() << " cities\n";
     std::cout << "Using " << num_threads << " threads\n";
-    std::cout << "Cutoff: " << 0 << " (split all the way)\n\n";
-    
+    std::cout << "Cutoff: " << 0 << " (split fully)\n\n";
+
     TSPPath::setup(&graph);
-    
-    // Create task with cutoff 0 (split all the way)
+
+    // Create task with cutoff 0
     ModifiedTSPTask* tsp_task = new ModifiedTSPTask(0);
-    
-    // Run parallel version
+
+    // Parallel execution
     std::cout << "\nRunning parallel version with " << num_threads << " threads..." << std::endl;
-    
     ParallelTaskRunner parallel_runner(num_threads);
-    
+
     auto start_time = std::chrono::high_resolution_clock::now();
     parallel_runner.run(tsp_task);
     auto end_time = std::chrono::high_resolution_clock::now();
-    
+
     double parallel_time = std::chrono::duration<double>(end_time - start_time).count();
-    
-    
+
     TSPPath best_path = tsp_task->result();
-    
+
     std::cout << "\n=== PARALLEL RESULTS ===" << std::endl;
     std::cout << "Best distance: " << best_path.distance() << std::endl;
+    std::cout << "Best path: " << best_path << std::endl;
     std::cout << "Time: " << std::fixed << std::setprecision(3) << parallel_time << " seconds" << std::endl;
     std::cout << "Tasks processed: " << parallel_runner.getTasksProcessed() << std::endl;
     std::cout << "Tasks created: " << parallel_runner.getTasksCreated() << std::endl;
-    
-    
+
+    // Sequential for comparison
     std::cout << "\nRunning sequential version for comparison..." << std::endl;
-    
+
     ModifiedTSPTask seq_task(0);
     DirectTaskRunner seq_runner;
-    
+
     start_time = std::chrono::high_resolution_clock::now();
     seq_runner.run(&seq_task);
     end_time = std::chrono::high_resolution_clock::now();
-    
+
     double seq_time = std::chrono::duration<double>(end_time - start_time).count();
     TSPPath seq_best = seq_task.result();
-    
+
     std::cout << "\n=== SEQUENTIAL RESULTS ===" << std::endl;
     std::cout << "Best distance: " << seq_best.distance() << std::endl;
+    std::cout << "Best path: " << seq_best << std::endl;
     std::cout << "Time: " << std::fixed << std::setprecision(3) << seq_time << " seconds" << std::endl;
-    
-    // Verify results match
+
+    // Verify correctness
     if (best_path.distance() == seq_best.distance()) {
         std::cout << "\n✓ Results match! Parallel solution is correct." << std::endl;
     } else {
@@ -83,16 +86,16 @@ int main(int argc, char** argv) {
         std::cout << "Parallel: " << best_path.distance() << std::endl;
         std::cout << "Sequential: " << seq_best.distance() << std::endl;
     }
-    
-    // Calculate speedup
+
+    // Speedup
     if (seq_time > 0) {
         double speedup = seq_time / parallel_time;
         double efficiency = speedup / num_threads;
-        
+
         std::cout << "\n=== PERFORMANCE ===" << std::endl;
         std::cout << "Speedup: " << std::fixed << std::setprecision(2) << speedup << "x" << std::endl;
         std::cout << "Efficiency: " << std::fixed << std::setprecision(2) << (efficiency * 100) << "%" << std::endl;
     }
-    
+
     return 0;
 }
