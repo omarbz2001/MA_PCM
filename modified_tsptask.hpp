@@ -162,54 +162,68 @@ public:
         return false;
     }
 
-    bool shouldPrune() const {
-        if (++_local_best_check_counter % 16 == 0) {
-            return estimateLowerBound() >= best_distance.load(std::memory_order_acquire);
-        }
-        return false;
+    bool shouldPrune() const {  
+        return estimateLowerBound() >= best_distance.load(std::memory_order_acquire);
     }
 
     int estimateLowerBound() const {
-        // Current path distance plus a cheap admissible lower bound
-        // using minimal outgoing edges for remaining nodes and closing edge.
+        // Stronger admissible bound using a 1-tree style relaxation:
+        // lb = distance(path)
+        //    + MST over remaining nodes (excluding root)
+        //    + two smallest edges from root (choose root = tail) to remaining ∪ {FIRST_NODE}
+        const int n = TSPPath::full();
         int lb = _path.distance();
 
-        // minimal edge from tail to any remaining node
+        // collect remaining nodes (not yet in path)
+        std::vector<int> remaining;
+        remaining.reserve(n);
+        for (int i = 0; i < n; ++i) {
+            if (!_path.contains(i)) remaining.push_back(i);
+        }
+
         int tail = _path.tail();
-        int minFromTail = INT_MAX;
-        for (int i = 0; i < TSPPath::full(); ++i) {
-            if (!_path.contains(i)) {
-                int d = TSPPath::graphDistance(tail, i);
-                if (d < minFromTail) minFromTail = d;
-            }
-        }
-        if (minFromTail != INT_MAX) lb += minFromTail;
 
-        // for each remaining node, add its minimal outgoing edge
-        for (int i = 0; i < TSPPath::full(); ++i) {
-            if (!_path.contains(i)) {
-                int minOut = INT_MAX;
-                for (int j = 0; j < TSPPath::full(); ++j) {
-                    if (i == j) continue;
-                    if (j == tail && !_path.contains(i)) {
-                        // already accounted tail->i above; skip exact duplicate contribution
+        // MST over remaining nodes (if size >= 2)
+        if (remaining.size() >= 2) {
+            std::vector<bool> vis(remaining.size(), false);
+            vis[0] = true;
+            int visitedCount = 1;
+            while (visitedCount < (int)remaining.size()) {
+                int bestEdge = INT_MAX;
+                int bestJ = -1;
+                for (int uIdx = 0; uIdx < (int)remaining.size(); ++uIdx) {
+                    if (!vis[uIdx]) continue;
+                    int u = remaining[uIdx];
+                    for (int vIdx = 0; vIdx < (int)remaining.size(); ++vIdx) {
+                        if (vis[vIdx]) continue;
+                        int v = remaining[vIdx];
+                        int w = TSPPath::graphDistance(u, v);
+                        if (w < bestEdge) { bestEdge = w; bestJ = vIdx; }
                     }
-                    int d = TSPPath::graphDistance(i, j);
-                    if (d < minOut) minOut = d;
                 }
-                if (minOut != INT_MAX) lb += minOut;
+                if (bestJ < 0 || bestEdge == INT_MAX) break;
+                lb += bestEdge;
+                vis[bestJ] = true;
+                ++visitedCount;
             }
         }
 
-        // close path to start: minimal closing edge from either tail or any remaining
-        int minClose = TSPPath::graphDistance(tail, TSPPath::FIRST_NODE);
-        for (int i = 0; i < TSPPath::full(); ++i) {
-            if (!_path.contains(i)) {
-                int d = TSPPath::graphDistance(i, TSPPath::FIRST_NODE);
-                if (d < minClose) minClose = d;
-            }
+        // two smallest edges from root (tail) to remaining ∪ {FIRST_NODE}
+        int e1 = INT_MAX, e2 = INT_MAX;
+        for (int v : remaining) {
+            if (v == tail) continue;
+            int w = TSPPath::graphDistance(tail, v);
+            if (w < e1) { e2 = e1; e1 = w; }
+            else if (w < e2) { e2 = w; }
         }
-        lb += minClose;
+        // include FIRST_NODE as candidate to ensure two edges exist when remaining.size() == 1
+        if (TSPPath::FIRST_NODE != tail) {
+            int w = TSPPath::graphDistance(tail, TSPPath::FIRST_NODE);
+            if (w < e1) { e2 = e1; e1 = w; }
+            else if (w < e2) { e2 = w; }
+        }
+        if (e1 != INT_MAX) lb += e1;
+        if (e2 != INT_MAX) lb += e2;
 
         return lb;
     }
@@ -221,7 +235,7 @@ public:
         }
 
         if (_path.size() >= _cutoff_size) return 0;
-        if (shouldPrune()) return 0;
+        if (shouldPrune()) return -1;
 
         int count = 0;
         int current_best = best_distance.load(std::memory_order_acquire);
@@ -244,8 +258,6 @@ public:
     void merge(TaskCollection*) override {}
 
     void solve() override {
-        if (shouldPrune()) return;
-
         if (_path.size() == TSPPath::full()) {
             _path.push(TSPPath::FIRST_NODE);
             if (_path.distance() < best_distance.load(std::memory_order_acquire)) {

@@ -8,12 +8,16 @@ int main(int argc, char** argv) {
     if (argc < 4) {
         std::cerr << "Usage: " << argv[0] << " <file.tsp> <num_cities> <num_threads>\n";
         std::cerr << "Example: " << argv[0] << " example.tsp 10 8\n";
+        std::cerr << "Usage: " << argv[0] << " <file.tsp> <num_cities> <num_threads> [cutoff]\n";
+        std::cerr << "Example: " << argv[0] << " example.tsp 12 8 3\n";
         return 1;
     }
 
     std::string filename = argv[1];
     int num_cities = std::atoi(argv[2]);
     int num_threads = std::atoi(argv[3]);
+    int cutoff = 0;
+    if (argc >= 5) cutoff = std::atoi(argv[4]);
 
     if (num_threads <= 0) {
         num_threads = std::thread::hardware_concurrency();
@@ -31,12 +35,13 @@ int main(int argc, char** argv) {
     
     std::cout << "Graph size: " << graph.size() << " cities\n";
     std::cout << "Using " << num_threads << " threads\n";
-    std::cout << "Cutoff: " << 0 << " (split all the way)\n\n";
+    std::cout << "Cutoff: " << cutoff << "\n\n";
     
     TSPPath::setup(&graph);
     
     // Create task with cutoff 0 (split all the way)
-    ModifiedTSPTask* tsp_task = new ModifiedTSPTask(0);
+    // Create task with chosen cutoff
+    ModifiedTSPTask* tsp_task = new ModifiedTSPTask(cutoff);
     
     // Run parallel version
     std::cout << "\nRunning parallel version with " << num_threads << " threads..." << std::endl;
@@ -61,7 +66,7 @@ int main(int argc, char** argv) {
     
     std::cout << "\nRunning sequential version for comparison..." << std::endl;
     
-    ModifiedTSPTask seq_task(0);
+    ModifiedTSPTask seq_task(cutoff);
     DirectTaskRunner seq_runner;
     
     start_time = std::chrono::high_resolution_clock::now();
