@@ -164,9 +164,54 @@ public:
 
     bool shouldPrune() const {
         if (++_local_best_check_counter % 16 == 0) {
-            return _path.distance() >= best_distance.load(std::memory_order_acquire);
+            return estimateLowerBound() >= best_distance.load(std::memory_order_acquire);
         }
         return false;
+    }
+
+    int estimateLowerBound() const {
+        // Current path distance plus a cheap admissible lower bound
+        // using minimal outgoing edges for remaining nodes and closing edge.
+        int lb = _path.distance();
+
+        // minimal edge from tail to any remaining node
+        int tail = _path.tail();
+        int minFromTail = INT_MAX;
+        for (int i = 0; i < TSPPath::full(); ++i) {
+            if (!_path.contains(i)) {
+                int d = TSPPath::graphDistance(tail, i);
+                if (d < minFromTail) minFromTail = d;
+            }
+        }
+        if (minFromTail != INT_MAX) lb += minFromTail;
+
+        // for each remaining node, add its minimal outgoing edge
+        for (int i = 0; i < TSPPath::full(); ++i) {
+            if (!_path.contains(i)) {
+                int minOut = INT_MAX;
+                for (int j = 0; j < TSPPath::full(); ++j) {
+                    if (i == j) continue;
+                    if (j == tail && !_path.contains(i)) {
+                        // already accounted tail->i above; skip exact duplicate contribution
+                    }
+                    int d = TSPPath::graphDistance(i, j);
+                    if (d < minOut) minOut = d;
+                }
+                if (minOut != INT_MAX) lb += minOut;
+            }
+        }
+
+        // close path to start: minimal closing edge from either tail or any remaining
+        int minClose = TSPPath::graphDistance(tail, TSPPath::FIRST_NODE);
+        for (int i = 0; i < TSPPath::full(); ++i) {
+            if (!_path.contains(i)) {
+                int d = TSPPath::graphDistance(i, TSPPath::FIRST_NODE);
+                if (d < minClose) minClose = d;
+            }
+        }
+        lb += minClose;
+
+        return lb;
     }
 
     int split(TaskCollection* collection) override {
@@ -185,8 +230,8 @@ public:
             if (!_path.contains(i)) {
                 int new_dist = _path.distance()
                              + TSPPath::graphDistance(_path.tail(), i);
-
-                if (new_dist < current_best) {
+                // apply bound with quick estimate
+                if (new_dist + TSPPath::graphDistance(i, TSPPath::FIRST_NODE) < current_best) {
                     ModifiedTSPTask* t = new ModifiedTSPTask(_path, i);
                     collection->push(t);
                     ++count;
@@ -213,7 +258,8 @@ public:
                 if (!_path.contains(i)) {
                     int new_dist = _path.distance()
                                  + TSPPath::graphDistance(_path.tail(), i);
-                    if (new_dist < current_best) {
+                    // prune with simple bound including close-to-start
+                    if (new_dist + TSPPath::graphDistance(i, TSPPath::FIRST_NODE) < current_best) {
                         _path.push(i);
                         solve();
                         _path.pop();
