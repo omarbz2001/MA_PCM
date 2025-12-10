@@ -2,135 +2,120 @@
 #define LOCKFREE_STACK_HPP
 
 #include <atomic>
-#include <memory>
+#include <cstdint>
+#include <stdexcept>
+#include <utility>
 #include "task.hpp"
 
-// Tagged pointer to avoid ABA problem
-template<typename T>
-struct TaggedPointer {
-    T* ptr;
-    unsigned int tag;
-    
-    bool operator==(const TaggedPointer& other) const {
-        return ptr == other.ptr && tag == other.tag;
-    }
-};
-
-
-template<typename T>
-union TaggedUint {
-    TaggedPointer<T> tagged;
-    uintptr_t uint;
-    
-    TaggedUint() : uint(0) {}
-    TaggedUint(T* p, unsigned int t) { tagged.ptr = p; tagged.tag = t; }
-    TaggedUint(uintptr_t u) : uint(u) {}
-};
-
-// Lock-free stack node
-struct LockFreeNode {
+struct LFNode {
     Task* task;
-    LockFreeNode* next;
-    
-    LockFreeNode(Task* t) : task(t), next(nullptr) {}
+    LFNode* next;
+    explicit LFNode(Task* t) : task(t), next(nullptr) {}
 };
 
-// Main lock-free stack class
 class LockFreeStack : public TaskCollection {
 private:
-    std::atomic<uintptr_t> head;
-    std::atomic<size_t> size_counter;
-    
-    // Helper to get next tag
-    unsigned int next_tag() {
-        static std::atomic<unsigned int> global_tag{0};
-        return global_tag.fetch_add(1, std::memory_order_relaxed);
+    // Pack pointer+tag in one 64-bit word: [ tag:16 | ptr:48 ]
+    std::atomic<uint64_t> headPacked{0};
+    std::atomic<int> size_counter{0};
+
+    static uint64_t pack(LFNode* ptr, uint16_t tag) {
+        uint64_t p = reinterpret_cast<uint64_t>(ptr);
+        // mask to 48 bits
+        p &= 0x0000FFFFFFFFFFFFULL;
+        return (static_cast<uint64_t>(tag) << 48) | p;
     }
-    
+
+    static LFNode* unpackPtr(uint64_t packed) {
+        uint64_t p = packed & 0x0000FFFFFFFFFFFFULL;
+        return reinterpret_cast<LFNode*>(p);
+    }
+
+    static uint16_t unpackTag(uint64_t packed) {
+        return static_cast<uint16_t>(packed >> 48);
+    }
+
 public:
-    LockFreeStack() {
-        head.store(0, std::memory_order_relaxed);
-        size_counter.store(0, std::memory_order_relaxed);
-    }
-    
+    LockFreeStack() = default;
+
     ~LockFreeStack() override {
-        // Free remaining nodes
-        uintptr_t current = head.load(std::memory_order_relaxed);
-        if (current != 0) {
-            LockFreeNode* node = TaggedUint<LockFreeNode>(current).tagged.ptr;
-            delete node;
+        clear();
+    }
+
+    int size() const override { return size_counter.load(std::memory_order_relaxed); }
+
+    Task* operator[](int) override {
+        throw std::runtime_error("Index operator not supported for LockFreeStack");
+    }
+
+    void push(Task* task) override {
+        if (!task) return;
+        LFNode* node = new LFNode(task);
+
+        while (true) {
+            uint64_t oldPacked = headPacked.load(std::memory_order_acquire);
+            LFNode* oldHead = unpackPtr(oldPacked);
+            uint16_t oldTag = unpackTag(oldPacked);
+
+            node->next = oldHead;
+            uint64_t newPacked = pack(node, static_cast<uint16_t>(oldTag + 1));
+
+            if (headPacked.compare_exchange_weak(oldPacked, newPacked,
+                    std::memory_order_release, std::memory_order_acquire)) {
+                size_counter.fetch_add(1, std::memory_order_relaxed);
+                return;
+            }
         }
     }
-    
-    
-    int size() const override {
-        return static_cast<int>(size_counter.load(std::memory_order_relaxed));
-    }
-    
-    Task* operator[](int i) override {
-       
-        throw std::runtime_error("Index operator not supported for lock-free stack");
-        return nullptr;
-    }
-    
-    void push(Task* task) override {
-        LockFreeNode* new_node = new LockFreeNode(task);
-        TaggedUint<LockFreeNode> new_head(new_node, next_tag());
-        
-        uintptr_t current_head;
-        do {
-            current_head = head.load(std::memory_order_relaxed);
-            new_node->next = (current_head == 0) ? nullptr 
-                : TaggedUint<LockFreeNode>(current_head).tagged.ptr;
-            new_head.tagged.tag = next_tag();
-        } while (!head.compare_exchange_weak(current_head, 
-                                            new_head.uint,
-                                            std::memory_order_release,
-                                            std::memory_order_relaxed));
-        
-        size_counter.fetch_add(1, std::memory_order_relaxed);
-    }
-    
+
     Task* pop() override {
-        TaggedUint<LockFreeNode> current_head;
-        TaggedUint<LockFreeNode> new_head;
-        
-        do {
-            current_head.uint = head.load(std::memory_order_relaxed);
-            if (current_head.uint == 0) {
-                return nullptr; // Stack is empty
+        while (true) {
+            uint64_t oldPacked = headPacked.load(std::memory_order_acquire);
+            LFNode* oldHead = unpackPtr(oldPacked);
+            uint16_t oldTag = unpackTag(oldPacked);
+
+            if (!oldHead) return nullptr;
+
+            LFNode* next = oldHead->next;
+            uint64_t newPacked = pack(next, static_cast<uint16_t>(oldTag + 1));
+
+            if (headPacked.compare_exchange_weak(oldPacked, newPacked,
+                    std::memory_order_release, std::memory_order_acquire)) {
+                Task* t = oldHead->task;
+                delete oldHead; // free node structure; task ownership returns to caller
+                size_counter.fetch_sub(1, std::memory_order_relaxed);
+                return t;
             }
-            
-            LockFreeNode* next_node = current_head.tagged.ptr->next;
-            if (next_node == nullptr) {
-                new_head.uint = 0;
-            } else {
-                new_head.tagged.ptr = next_node;
-                new_head.tagged.tag = next_tag();
-            }
-            
-        } while (!head.compare_exchange_weak(current_head.uint,
-                                            new_head.uint,
-                                            std::memory_order_release,
-                                            std::memory_order_relaxed));
-        
-        Task* task = current_head.tagged.ptr->task;
-        delete current_head.tagged.ptr;
-        
-        size_counter.fetch_sub(1, std::memory_order_relaxed);
-        return task;
+        }
     }
-    
+
     void clear() override {
-        
-        head.store(0, std::memory_order_relaxed);
-        size_counter.store(0, std::memory_order_relaxed);
+        while (true) {
+            uint64_t oldPacked = headPacked.load(std::memory_order_acquire);
+            LFNode* oldHead = unpackPtr(oldPacked);
+            if (!oldHead) break;
+            // try to set head to null with tag+1
+            uint16_t oldTag = unpackTag(oldPacked);
+            uint64_t newPacked = pack(nullptr, static_cast<uint16_t>(oldTag + 1));
+            if (headPacked.compare_exchange_weak(oldPacked, newPacked,
+                    std::memory_order_release, std::memory_order_acquire)) {
+                // drain list
+                LFNode* cur = oldHead;
+                while (cur) {
+                    LFNode* nxt = cur->next;
+                    delete cur->task;
+                    delete cur;
+                    cur = nxt;
+                }
+                size_counter.store(0, std::memory_order_relaxed);
+                break;
+            }
+        }
     }
-    
-    
+
     bool empty() const {
-        return size() == 0;
+        return unpackPtr(headPacked.load(std::memory_order_acquire)) == nullptr;
     }
 };
 
-#endif 
+#endif // LOCKFREE_STACK_HPP
