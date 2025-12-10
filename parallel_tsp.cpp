@@ -41,13 +41,32 @@ int main(int argc, char** argv) {
     // Create task with cutoff 0
     ModifiedTSPTask* tsp_task = new ModifiedTSPTask(0);
 
+    
+
+    // Sequential for comparison
+    std::cout << "\nRunning sequential version for comparison..." << std::endl;
+
+    ModifiedTSPTask seq_task(0);
+    DirectTaskRunner seq_runner;
+
+    auto start_time = std::chrono::high_resolution_clock::now();
+    seq_runner.run(&seq_task);
+    auto end_time = std::chrono::high_resolution_clock::now();
+
+    double seq_time = std::chrono::duration<double>(end_time - start_time).count();
+    TSPPath seq_best = seq_task.result();
+
+    std::cout << "\n=== SEQUENTIAL RESULTS ===" << std::endl;
+    std::cout << "Best distance: " << seq_best.distance() << std::endl;
+    std::cout << "Best path: " << seq_best << std::endl;
+    std::cout << "Time: " << std::fixed << std::setprecision(3) << seq_time << " seconds" << std::endl;
     // Parallel execution
     std::cout << "\nRunning parallel version with " << num_threads << " threads..." << std::endl;
     ParallelTaskRunner parallel_runner(num_threads);
 
-    auto start_time = std::chrono::high_resolution_clock::now();
+    start_time = std::chrono::high_resolution_clock::now();
     parallel_runner.run(tsp_task);
-    auto end_time = std::chrono::high_resolution_clock::now();
+    end_time = std::chrono::high_resolution_clock::now();
 
     double parallel_time = std::chrono::duration<double>(end_time - start_time).count();
 
@@ -59,25 +78,6 @@ int main(int argc, char** argv) {
     std::cout << "Time: " << std::fixed << std::setprecision(3) << parallel_time << " seconds" << std::endl;
     std::cout << "Tasks processed: " << parallel_runner.getTasksProcessed() << std::endl;
     std::cout << "Tasks created: " << parallel_runner.getTasksCreated() << std::endl;
-
-    // Sequential for comparison
-    std::cout << "\nRunning sequential version for comparison..." << std::endl;
-
-    ModifiedTSPTask seq_task(0);
-    DirectTaskRunner seq_runner;
-
-    start_time = std::chrono::high_resolution_clock::now();
-    seq_runner.run(&seq_task);
-    end_time = std::chrono::high_resolution_clock::now();
-
-    double seq_time = std::chrono::duration<double>(end_time - start_time).count();
-    TSPPath seq_best = seq_task.result();
-
-    std::cout << "\n=== SEQUENTIAL RESULTS ===" << std::endl;
-    std::cout << "Best distance: " << seq_best.distance() << std::endl;
-    std::cout << "Best path: " << seq_best << std::endl;
-    std::cout << "Time: " << std::fixed << std::setprecision(3) << seq_time << " seconds" << std::endl;
-
     // Verify correctness
     if (best_path.distance() == seq_best.distance()) {
         std::cout << "\n✓ Results match! Parallel solution is correct." << std::endl;
