@@ -162,11 +162,70 @@ public:
         return false;
     }
 
-    bool shouldPrune() const {
-        if (++_local_best_check_counter % 16 == 0) {
-            return _path.distance() >= best_distance.load(std::memory_order_acquire);
+    bool shouldPrune() const {  
+        return estimateLowerBound() >= best_distance.load(std::memory_order_acquire);
+    }
+
+    int estimateLowerBound() const {
+        // Stronger admissible bound using a 1-tree style relaxation:
+        // lb = distance(path)
+        //    + MST over remaining nodes (excluding root)
+        //    + two smallest edges from root (choose root = tail) to remaining ∪ {FIRST_NODE}
+        const int n = TSPPath::full();
+        int lb = _path.distance();
+
+        // collect remaining nodes (not yet in path)
+        std::vector<int> remaining;
+        remaining.reserve(n);
+        for (int i = 0; i < n; ++i) {
+            if (!_path.contains(i)) remaining.push_back(i);
         }
-        return false;
+
+        int tail = _path.tail();
+
+        // MST over remaining nodes (if size >= 2)
+        if (remaining.size() >= 2) {
+            std::vector<bool> vis(remaining.size(), false);
+            vis[0] = true;
+            int visitedCount = 1;
+            while (visitedCount < (int)remaining.size()) {
+                int bestEdge = INT_MAX;
+                int bestJ = -1;
+                for (int uIdx = 0; uIdx < (int)remaining.size(); ++uIdx) {
+                    if (!vis[uIdx]) continue;
+                    int u = remaining[uIdx];
+                    for (int vIdx = 0; vIdx < (int)remaining.size(); ++vIdx) {
+                        if (vis[vIdx]) continue;
+                        int v = remaining[vIdx];
+                        int w = TSPPath::graphDistance(u, v);
+                        if (w < bestEdge) { bestEdge = w; bestJ = vIdx; }
+                    }
+                }
+                if (bestJ < 0 || bestEdge == INT_MAX) break;
+                lb += bestEdge;
+                vis[bestJ] = true;
+                ++visitedCount;
+            }
+        }
+
+        // two smallest edges from root (tail) to remaining ∪ {FIRST_NODE}
+        int e1 = INT_MAX, e2 = INT_MAX;
+        for (int v : remaining) {
+            if (v == tail) continue;
+            int w = TSPPath::graphDistance(tail, v);
+            if (w < e1) { e2 = e1; e1 = w; }
+            else if (w < e2) { e2 = w; }
+        }
+        // include FIRST_NODE as candidate to ensure two edges exist when remaining.size() == 1
+        if (TSPPath::FIRST_NODE != tail) {
+            int w = TSPPath::graphDistance(tail, TSPPath::FIRST_NODE);
+            if (w < e1) { e2 = e1; e1 = w; }
+            else if (w < e2) { e2 = w; }
+        }
+        if (e1 != INT_MAX) lb += e1;
+        if (e2 != INT_MAX) lb += e2;
+
+        return lb;
     }
 
     int split(TaskCollection* collection) override {
@@ -176,7 +235,7 @@ public:
         }
 
         if (_path.size() >= _cutoff_size) return 0;
-        if (shouldPrune()) return 0;
+        if (shouldPrune()) return -1;
 
         int count = 0;
         int current_best = best_distance.load(std::memory_order_acquire);
@@ -185,8 +244,8 @@ public:
             if (!_path.contains(i)) {
                 int new_dist = _path.distance()
                              + TSPPath::graphDistance(_path.tail(), i);
-
-                if (new_dist < current_best) {
+                // apply bound with quick estimate
+                if (new_dist + TSPPath::graphDistance(i, TSPPath::FIRST_NODE) < current_best) {
                     ModifiedTSPTask* t = new ModifiedTSPTask(_path, i);
                     collection->push(t);
                     ++count;
@@ -199,8 +258,6 @@ public:
     void merge(TaskCollection*) override {}
 
     void solve() override {
-        if (shouldPrune()) return;
-
         if (_path.size() == TSPPath::full()) {
             _path.push(TSPPath::FIRST_NODE);
             if (_path.distance() < best_distance.load(std::memory_order_acquire)) {
@@ -213,7 +270,8 @@ public:
                 if (!_path.contains(i)) {
                     int new_dist = _path.distance()
                                  + TSPPath::graphDistance(_path.tail(), i);
-                    if (new_dist < current_best) {
+                    // prune with simple bound including close-to-start
+                    if (new_dist + TSPPath::graphDistance(i, TSPPath::FIRST_NODE) < current_best) {
                         _path.push(i);
                         solve();
                         _path.pop();
