@@ -4,22 +4,14 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <functional>
 #include <chrono>
 #include <iostream>
-#include <condition_variable>
-#include <mutex>
-
-#include "task.hpp"
 #include "lockfree_stack.hpp"
-
-// ParallelTaskRunner:
-// - Uses a global lock-free Treiber stack for tasks
-// - Uses a condition variable ONLY for sleeping/wakeup
-// - Termination is driven by outstanding_tasks
 
 class ParallelTaskRunner : public TaskRunner {
 private:
-    LockFreeStack task_pool; // lock-free Treiber stack
+    LockFreeStack task_pool;
     std::vector<std::thread> workers;
     std::atomic<bool> termination_requested;
     std::atomic<int> active_workers;
@@ -32,8 +24,8 @@ private:
     
     
     int _num_threads;
-
-    void worker_function(int /*thread_id*/) {
+    
+    void worker_function(int thread_id) {
         active_workers.fetch_add(1, std::memory_order_relaxed);
         
         int idle_loops = 0;
@@ -91,10 +83,10 @@ private:
                 idle_loops = MAX_IDLE_LOOPS + 1;
             }
         }
-
+        
         active_workers.fetch_sub(1, std::memory_order_relaxed);
     }
-
+    
 public:
     ParallelTaskRunner(int num_threads) 
         : _num_threads(num_threads),
@@ -108,12 +100,13 @@ public:
                     total_work_loops(0) {
         
         if (_num_threads <= 0) {
-            _num_threads = static_cast<int>(std::thread::hardware_concurrency());
+            _num_threads = std::thread::hardware_concurrency();
             if (_num_threads == 0) _num_threads = 4;
         }
+        
         workers.reserve(_num_threads);
     }
-
+    
     ~ParallelTaskRunner() override {
         stop();
     }
@@ -134,23 +127,28 @@ public:
         
         task_pool.push(root_task);
         tasks_created.store(1, std::memory_order_relaxed);
-
+        
+        
         startTimer();
-
+        
+       
+        std::cout << "Creating " << _num_threads << " worker threads\n";
+        
         for (int i = 0; i < _num_threads; ++i) {
             workers.emplace_back(&ParallelTaskRunner::worker_function, this, i);
         }
-
-        {
-            std::lock_guard<std::mutex> lk(cv_m);
-            cv.notify_all();
+        
+        
+        for (auto& worker : workers) {
+            if (worker.joinable()) {
+                worker.join();
+            }
         }
-
-        for (auto& w : workers) {
-            if (w.joinable()) w.join();
-        }
+        
+        
         workers.clear();
-
+        
+        
         stopTimer();
         
         std::cout << "All threads finished. Processed " << tasks_processed.load() 
@@ -158,19 +156,19 @@ public:
         std::cout << "Idle loops: " << total_idle_loops.load() 
               << ", Work loops: " << total_work_loops.load() << "\n";
     }
-
+    
     void stop() {
         termination_requested.store(true, std::memory_order_relaxed);
-        {
-            std::lock_guard<std::mutex> lk(cv_m);
-            cv.notify_all();
-        }
-        for (auto& w : workers) {
-            if (w.joinable()) w.join();
+        
+        for (auto& worker : workers) {
+            if (worker.joinable()) {
+                worker.join();
+            }
         }
         workers.clear();
     }
-
+    
+    
     int getTasksProcessed() const { return tasks_processed.load(); }
     int getTasksCreated() const { return tasks_created.load(); }
     int getActiveWorkers() const { return active_workers.load(); }
@@ -189,4 +187,4 @@ public:
     */
 };
 
-#endif // PARALLEL_TASK_RUNNER_HPP
+#endif 
