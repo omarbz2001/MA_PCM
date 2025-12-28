@@ -3,10 +3,10 @@
 Run Information:
 Filename: dj38.tsp
 Number of cities: 12
-Number of threads: 12
+Number of threads: 4
 Cutoff: 7
 
 Type		Time(s)		Speedup		Efficiency(%)
 ----		------		-------		------------
-Parallel	0.020		4.526		37.719
-Sequential	0.088		N/A		N/A
+Parallel	0.033		2.582		64.545
+Sequential	0.085		N/A		N/A

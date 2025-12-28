@@ -153,6 +153,37 @@ public:
         return false;
     }
 
+    int split(TaskCollection* collection, int& prunedLeaves) {
+        if (_path.size() >= _cutoff_size) return 0;
+
+        int keptChildren = 0;
+        prunedLeaves = 0;
+
+        int current_best = best_distance.load(std::memory_order_acquire);
+
+        for (int i = 0; i < TSPPath::full(); ++i) {
+            if (!_path.contains(i)) {
+                int new_dist = _path.distance()
+                            + TSPPath::graphDistance(_path.tail(), i);
+
+                TSPTask* child = new TSPTask(_path, i);
+                int childLeaves = child->remainingLeaves(true);
+
+                if (new_dist < current_best) {
+                    collection->push(child);
+                    keptChildren++;
+                } else {
+                    prunedLeaves += childLeaves;
+                    delete child;
+                }
+            }
+        }
+
+        return keptChildren;
+    }
+
+
+
     int split(TaskCollection* collection) override {
         if (_path.size() >= _cutoff_size) return 0;
 
@@ -200,6 +231,26 @@ public:
     void write(std::ostream& os) const override {
         os << "Task" << _path;
     }
+    
+    int remainingLeaves(bool parentIncluded = false) const
+    {
+        int maxDepth = _cutoff_size - _path.size();
+        int n = TSPPath::full() - _path.size();
+
+        int sum = 0;
+        int perm = 1;
+
+        for (int k = 1; k <= maxDepth && k <= n; ++k)
+        {
+            perm *= (n - k + 1); // P(n,k)
+            sum += perm;
+        }
+
+        return parentIncluded ? sum + 1 : sum;
+    }
+
+
+
 };
 
 // static definitions
