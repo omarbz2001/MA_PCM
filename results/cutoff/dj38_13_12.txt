@@ -1,0 +1,24 @@
+
+****Results:****
+Run Information:
+Filename: dj38.tsp
+Number of cities: 13
+Number of threads: 12
+Cutoffs tested: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
+
+Cutoff		Parallel(s)
+------		-----------
+0		6.257
+1		5.989
+2		5.657
+3		4.154
+4		2.745
+5		0.892
+6		0.248
+7		0.152
+8		0.149
+9		0.155
+10		0.199
+11		0.481
+12		1.318
+13		1.353

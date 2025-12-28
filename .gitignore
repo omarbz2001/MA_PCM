@@ -1,1 +1,7 @@
 token
+
+#exclude executables with .exe and with no extensions
+*
+!/**/
+!*.*
+.exe
