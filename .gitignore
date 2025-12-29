@@ -1,4 +1,5 @@
 token
+.venv
 
 #exclude executables with .exe and with no extensions
 *
