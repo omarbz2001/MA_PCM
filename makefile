@@ -1,49 +1,23 @@
 CPPFLAGS=-O3 -std=c++11 -pthread -march=native
-#CPPFLAGS=-g -std=c++11 -pthread -Wall -Wextra
-#CPPFLAGS=-std=c++20 -pthread
 
-# Original targets
-TARGETS=tsp tspprint intvecsort
+TARGETS=comparator_seq_vs_parallel comparator_cutoff comparator_combined _simpler_implem_tester
 
-# New parallel target
-PARALLEL_TARGETS=parallel_tsp
+all: $(TARGETS)
 
-# All targets including parallel
-ALL_TARGETS=$(TARGETS) $(PARALLEL_TARGETS)
+comparator_seq_vs_parallel: comparator_seq_vs_parallel.cpp tsptask.hpp parallel_task_runner.hpp lockfree_stack.hpp task.hpp tspgraph.hpp
+	$(CXX) $(CPPFLAGS) -o comparator_seq_vs_parallel comparator_seq_vs_parallel.cpp
 
-all: $(ALL_TARGETS)
+comparator_cutoff: comparator_cutoff.cpp tsptask.hpp parallel_task_runner.hpp lockfree_stack.hpp task.hpp tspgraph.hpp
+	$(CXX) $(CPPFLAGS) -o comparator_cutoff comparator_cutoff.cpp
 
-# Original programs
-tsp: tsp.cpp tsptask.hpp task.hpp tspgraph.hpp
-	$(CXX) $(CPPFLAGS) -o tsp tsp.cpp
+comparator_combined: comparator_combined.cpp tsptask.hpp parallel_task_runner.hpp lockfree_stack.hpp task.hpp tspgraph.hpp
+	$(CXX) $(CPPFLAGS) -o comparator_combined comparator_combined.cpp
 
-tspprint: tspprint.cpp tspgraph.hpp
-	$(CXX) $(CPPFLAGS) -o tspprint tspprint.cpp
+_simpler_implem_tester: _simpler_implem_tester.cpp tsptask.hpp parallel_task_runner.hpp lockfree_stack.hpp task.hpp tspgraph.hpp
+	$(CXX) $(CPPFLAGS) -o _simpler_implem_tester _simpler_implem_tester.cpp
 
-intvecsort: intvecsort.cpp intvecsorttask.hpp
-	$(CXX) $(CPPFLAGS) -o intvecsort intvecsort.cpp
-
-# Parallel TSP program
-parallel_tsp: parallel_tsp.cpp modified_tsptask.hpp parallel_task_runner.hpp lockfree_stack.hpp task.hpp tspgraph.hpp
-	$(CXX) $(CPPFLAGS) -o parallel_tsp parallel_tsp.cpp
-
-
-
-
-
-
-# Performance test with different thread counts
-perf_test: parallel_tsp
-	@echo "Performance scaling test..."
-	@for threads in 1 2 4 8 16 32; do \
-		echo -n "Threads=$$threads: "; \
-		timeout 30 ./parallel_tsp test_data/example.tsp 12 $$threads 2>/dev/null | grep "Speedup:" || echo "Timeout or error"; \
-	done
-
-# Clean everything
 clean:
-	rm -f $(ALL_TARGETS)
+	rm -f $(TARGETS)
 	rm -f *.o
 
-
-.PHONY: all clean test_small test_medium perf_test test_data
+.PHONY: all clean

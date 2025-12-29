@@ -7,6 +7,16 @@
 #include <stdexcept>
 #include <iomanip>
 
+/*****************************************************************
+  TSPGraph class
+  usage:
+         TSPGraph g(filename);
+         g.resize(atoi(argv[2]));
+         TSPPath::setup(&g);
+         int s = g.size();
+         int d = g.distance(pointa, pointb);
+ *****************************************************************/
+
 class TSPGraph {
 private:
 	struct Point { double x, y; };

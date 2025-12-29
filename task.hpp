@@ -2,9 +2,14 @@
 #define TASK_HPP
 
 #include <iostream>
-#include <chrono>
-#include <vector>  
-#include <stdexcept>  
+
+/*****************************************************************
+  Task class
+  Methods:
+    split(c) splits a task into subtasks, all added to c
+    merge(c) merge results from all subtasks in c
+    solve() solves the task without splitting
+ *****************************************************************/
 
 class TaskCollection;
 
@@ -22,6 +27,16 @@ std::ostream& operator<<(std::ostream& os, const Task& t) {
 	return os;
 }
 
+/*****************************************************************
+  TaskCollection classes
+  Methods:
+    [i] gets ith element in collection
+    push(e) pushes element e at the end of collection
+    pop() removes last element added
+    clear() removes all elements
+    size() gets number of elements in collection
+ *****************************************************************/
+
 class TaskCollection {
 public:
 	virtual int size() const = 0;
@@ -29,7 +44,7 @@ public:
 	virtual void push(Task* t) = 0;
 	virtual Task* pop() = 0;
 	virtual void clear() = 0;
-    virtual ~TaskCollection() = default;  
+	virtual ~TaskCollection() = default;
 };
 
 class TaskStack : public TaskCollection {
@@ -37,7 +52,7 @@ private:
 	std::vector<Task*> _tab;
 public:
 	TaskStack(int cap) { _tab.reserve(cap); }
-	int size() const override { return (int)_tab.size(); }
+	int size() const override { return _tab.size(); }
 	Task* operator[](int i) override { return _tab[i]; }
 	void push(Task* t) override {
 		_tab.push_back(t);
@@ -74,6 +89,15 @@ public:
 	void clear() override { _size = 0; }
 };
 
+/*****************************************************************
+  TaskRunner classes
+  Methods:
+    startTimer() starts mesuring time
+    stopTimer() stops measuring time
+    duration() gets time between startTimer() and stopTimer()
+    run(t) executes task t, must call startTimer() and stopTimer()
+ *****************************************************************/
+
 class TaskRunner {
 private:
 	std::chrono::time_point<std::chrono::high_resolution_clock> _start, _stop;
@@ -82,7 +106,7 @@ public:
 	virtual ~TaskRunner() = default;
 	double duration() const {
 		std::chrono::duration<double> diff = _stop - _start;
-		return diff.count();   
+		return diff.count();   // seconds as a double
 	}
 protected:
 	void startTimer() { _start = std::chrono::high_resolution_clock::now(); }
@@ -98,37 +122,4 @@ public:
 	}
 };
 
-class PartitionedTaskStackRunner : public TaskRunner {
-private:
-	int _size;
-	int _splits;
-	int _solves;
-	void recurse(Task* t) {
-		TaskStack coll(_size);
-// 		Task* space[_size];
-//		FixedTaskStack coll(space, _size);
-		int n = t->split(&coll);
-		if (n) {
-			_splits ++;
-			for (int i=0; i<n; i++)
-				recurse(coll[i]);
-			t->merge(&coll);
-		} else {
-			_solves ++;
-			t->solve();
-		}
-	}
-	PartitionedTaskStackRunner() {} 
-public:
-	PartitionedTaskStackRunner(int size) : _size(size), _splits(0), _solves(0) {}
-	virtual void run(Task* t) override {
-		TaskRunner::startTimer();
-		recurse(t);
-		TaskRunner::stopTimer();
-	}
-	float solveRatio() {
-		return _solves / (float) (_solves + _splits);
-	}
-};
-
-#endif 
+#endif
