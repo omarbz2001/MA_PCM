@@ -8,19 +8,19 @@ Cutoffs tested: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
 
 Cutoff		Type		Time(s)		Speedup		Efficiency(%)
 ------		----		------		-------		------------
-0		Sequential	0.576		N/A		N/A
-0		Parallel	6.033		0.095		0.795
-1		Parallel	6.353		0.091		0.755
-2		Parallel	5.694		0.101		0.843
-3		Parallel	3.890		0.148		1.233
-4		Parallel	1.907		0.302		2.517
-5		Parallel	0.675		0.853		7.108
-6		Parallel	0.219		2.632		21.935
-7		Parallel	0.135		4.263		35.529
-8		Parallel	0.128		4.507		37.558
-9		Parallel	0.132		4.357		36.305
-10		Parallel	0.172		3.342		27.852
-11		Parallel	0.445		1.295		10.790
-12		Parallel	1.269		0.454		3.780
+0		Sequential	0.601		N/A		N/A
+0		Parallel	6.437		0.093		0.778
+1		Parallel	6.144		0.098		0.815
+2		Parallel	5.672		0.106		0.883
+3		Parallel	4.009		0.150		1.249
+4		Parallel	2.133		0.282		2.348
+5		Parallel	0.680		0.883		7.361
+6		Parallel	0.207		2.904		24.196
+7		Parallel	0.142		4.236		35.302
+8		Parallel	0.134		4.470		37.249
+9		Parallel	0.137		4.389		36.573
+10		Parallel	0.176		3.418		28.484
+11		Parallel	0.388		1.548		12.902
+12		Parallel	0.745		0.807		6.725
 
-Sequential run time (cutoff 0): 0.576 seconds
+Sequential run time (cutoff 0): 0.601 seconds
