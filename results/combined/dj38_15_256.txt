@@ -1,0 +1,17 @@
+
+****Results:****
+Run Information:
+Filename: dj38.tsp
+Number of cities: 15
+Number of threads: 256
+Cutoffs tested: 0, 2, 4, 8
+
+Cutoff		Type		Time(s)		Speedup		Efficiency(%)
+------		----		------		-------		------------
+0		Sequential	35.677		N/A		N/A
+0		Parallel	23.934		1.491		0.582
+2		Parallel	36.810		0.969		0.379
+4		Parallel	24.530		1.454		0.568
+8		Parallel	1.205		29.607		11.565
+
+Sequential run time (cutoff 0): 35.677 seconds
