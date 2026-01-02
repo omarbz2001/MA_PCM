@@ -84,7 +84,7 @@ public:
 		}
 		int digits = 1;
 		while (max >= 10) { max /= 10; digits++; }
-		_width = digits + 1; // used only for printing
+		_width = digits + 1; 
 	}
 
 	void write(std::ostream& os) const {

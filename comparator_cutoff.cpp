@@ -4,7 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <string>
-#include "tsptask.hpp"
+#include "modified_tsptask.hpp"
 #include "parallel_task_runner.hpp"
 
 int main(int argc, char** argv) {
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
     
     for (int cutoff : cutoffs) {
         std::cout << "Running parallel TSP with cutoff " << cutoff << "...\n";
-        TSPTask* tsp_task = new TSPTask(cutoff);
+        ModifiedTSPTask* tsp_task = new ModifiedTSPTask(cutoff);
         ParallelTaskRunner parallel_runner(num_threads);
         parallel_runner.run(tsp_task);
         

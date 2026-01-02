@@ -5,15 +5,15 @@
 #include <cstdint>
 #include <stdexcept>
 #include <utility>
-#include "task.hpp"
+#include "task2.hpp"
 
 struct LFNode {
-    Task* task;
+    Task2* task;
     LFNode* next;
-    explicit LFNode(Task* t) : task(t), next(nullptr) {}
+    explicit LFNode(Task2* t) : task(t), next(nullptr) {}
 };
 
-class LockFreeStack : public TaskCollection {
+class LockFreeStack : public TaskCollection2 {
 private:
     // Pack pointer+tag in one 64-bit word: [ tag:16 | ptr:48 ]
     std::atomic<uint64_t> headPacked{0};
@@ -44,11 +44,11 @@ public:
 
     int size() const override { return size_counter.load(std::memory_order_relaxed); }
 
-    Task* operator[](int) override {
+    Task2* operator[](int) override {
         throw std::runtime_error("Index operator not supported for LockFreeStack");
     }
 
-    void push(Task* task) override {
+    void push(Task2* task) override {
         if (!task) return;
         LFNode* node = new LFNode(task);
 
@@ -68,7 +68,7 @@ public:
         }
     }
 
-    Task* pop() override {
+    Task2* pop() override {
         while (true) {
             uint64_t oldPacked = headPacked.load(std::memory_order_acquire);
             LFNode* oldHead = unpackPtr(oldPacked);
@@ -81,7 +81,7 @@ public:
 
             if (headPacked.compare_exchange_weak(oldPacked, newPacked,
                     std::memory_order_release, std::memory_order_acquire)) {
-                Task* t = oldHead->task;
+                Task2* t = oldHead->task;
                 delete oldHead; // free node structure; task ownership returns to caller
                 size_counter.fetch_sub(1, std::memory_order_relaxed);
                 return t;

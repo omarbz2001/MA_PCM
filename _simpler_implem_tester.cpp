@@ -2,8 +2,9 @@
 #include <iomanip>
 #include <chrono>
 #include <string>
-#include "tsptask.hpp"
+#include "modified_tsptask.hpp"
 #include "parallel_task_runner.hpp"
+#include "tsptaskseq.hpp"
 
 int main(int argc, char** argv) {
     if (argc < 4) {
@@ -41,7 +42,7 @@ int main(int argc, char** argv) {
     TSPPath::setup(&graph);
     
     // Create task with chosen cutoff
-    TSPTask* tsp_task = new TSPTask(cutoff);
+    ModifiedTSPTask* tsp_task = new ModifiedTSPTask(cutoff);
     
     // Run parallel version
     std::cout << "\nRunning parallel version with " << num_threads << " threads..." << std::endl;
@@ -57,15 +58,15 @@ int main(int argc, char** argv) {
 
     // Run sequential version for comparison
     std::cout << "\nRunning sequential version..." << std::endl;
-    
-    TSPTask* tsp_task_seq = new TSPTask(cutoff);
-    DirectTaskRunner sequential_runner;
+    TSPPathSeq::setup(&graph);
+    TSPTaskSeq* tsp_task_seq = new TSPTaskSeq(cutoff);
+    DirectTaskRunner2 sequential_runner;
     sequential_runner.run(tsp_task_seq);
     
     double sequential_time = sequential_runner.duration();
     std::cout << "Sequential time: " << sequential_time << " seconds\n";
     
-    TSPPath result_seq = tsp_task_seq->result();
+    TSPPathSeq result_seq = tsp_task_seq->result();
     std::cout << "Best path found (sequential): " << result_seq << std::endl;
 
     // Compare results

@@ -4,7 +4,7 @@
 #include <iostream>
 #include <chrono>
 
-// Forward declaration
+
 class TaskCollection;
 
 class Task {
@@ -59,7 +59,7 @@ public:
     }
 };
 
-// Inline operator<< definition (only one definition in the file)
+
 inline std::ostream& operator<<(std::ostream& os, const Task& t) {
     t.write(os);
     return os;

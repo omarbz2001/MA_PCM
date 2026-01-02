@@ -89,4 +89,4 @@ public:
     }
 };
 
-#endif // WORK_STEALING_DEQUE_HPP
+#endif 

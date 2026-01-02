@@ -10,10 +10,11 @@
 #include <ostream>
 
 #include "tspgraph.hpp"
-#include "task.hpp"
+
+#include "task2.hpp"
 #include "lockfree_stack.hpp"
 
-// Rename the class declaration and operator for the new class name
+
 class TSPPathSeq;
 
 std::ostream& operator<<(std::ostream& os, const TSPPathSeq& t);
@@ -90,15 +91,15 @@ public:
     }
 };
 
-// Adjusted operator for the renamed class
+
 inline std::ostream& operator<<(std::ostream& os, const TSPPathSeq& t) {
     t.write(os);
     return os;
 }
 
-class TSPTaskSeq : public Task {
+class TSPTaskSeq : public Task2 {
 private:
-    // shared among all tasks
+    
     static std::atomic<int> best_distance;
     static TSPPathSeq best_path;
     static std::mutex best_path_mutex;
@@ -120,7 +121,7 @@ public:
         best_path.maximise();
         _cutoff_size = TSPPathSeq::full() - cutoff;
 
-        // Compute initial bound: path 0-1-2-...-n-0
+        // Compute initial bound
         TSPPathSeq initial;
         for (int i = 1; i < TSPPathSeq::full(); ++i) {
             initial.push(i);
@@ -155,7 +156,7 @@ public:
         return false;
     }
 
-    int split(TaskCollection* collection, int& prunedLeaves) {
+    int split(TaskCollection2* collection, int& prunedLeaves) {
         if (_path.size() >= _cutoff_size) return 0;
 
         int keptChildren = 0;
@@ -184,7 +185,7 @@ public:
         return keptChildren;
     }
 
-    int split(TaskCollection* collection) override {
+    int split(TaskCollection2* collection) override {
         if (_path.size() >= _cutoff_size) return 0;
 
         int count = 0;
@@ -203,7 +204,7 @@ public:
         return count;
     }
 
-    void merge(TaskCollection*) override {}
+    void merge(TaskCollection2*) override {}
 
     void solve() override {
         if (_path.size() == TSPPathSeq::full()) {
@@ -255,4 +256,4 @@ TSPPathSeq TSPTaskSeq::best_path;
 std::mutex TSPTaskSeq::best_path_mutex;
 int TSPTaskSeq::_cutoff_size = INT_MAX;
 
-#endif // TSPTASKSEQ_HPP
+#endif 

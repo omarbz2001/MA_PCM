@@ -4,8 +4,10 @@
 #include <vector>
 #include <fstream>
 #include <string>
-#include "tsptask.hpp"
+#include "modified_tsptask.hpp"
 #include "parallel_task_runner.hpp"
+#include "tsptaskseq.hpp"
+
 
 int main(int argc, char** argv) {
     if (argc < 4) {
@@ -47,12 +49,12 @@ int main(int argc, char** argv) {
     for (int c : cutoffs) std::cout << c << " ";
     std::cout << "\n\n";
 
-    TSPPath::setup(&graph);
+    TSPPathSeq::setup(&graph);
 
     // Run sequential once with cutoff 0
     std::cout << "Running sequential TSP with cutoff 0...\n";
-    TSPTask* tsp_task_seq = new TSPTask(0);
-    DirectTaskRunner sequential_runner;
+    TSPTaskSeq* tsp_task_seq = new TSPTaskSeq(0);
+    DirectTaskRunner2 sequential_runner;
     sequential_runner.run(tsp_task_seq);
     double sequential_time = sequential_runner.duration();
     std::cout << "Sequential time: " << sequential_time << " seconds\n\n";
@@ -68,7 +70,8 @@ int main(int argc, char** argv) {
 
     for (int cutoff : cutoffs) {
         std::cout << "Running parallel TSP with cutoff " << cutoff << "...\n";
-        TSPTask* tsp_task_par = new TSPTask(cutoff);
+        TSPPath::setup(&graph);
+        ModifiedTSPTask* tsp_task_par = new ModifiedTSPTask(cutoff);
         ParallelTaskRunner parallel_runner(num_threads);
         parallel_runner.run(tsp_task_par);
         double parallel_time = parallel_runner.duration();

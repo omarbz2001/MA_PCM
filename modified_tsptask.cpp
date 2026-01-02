@@ -12,7 +12,7 @@ TSPPath ModifiedTSPTask::best_path;
 std::mutex ModifiedTSPTask::best_path_mutex;
 int ModifiedTSPTask::_cutoff_size = INT_MAX;
 
-// CRITICAL: Define the static member from TSPPath
+
 TSPGraph* TSPPath::_graph = nullptr;
 
 ModifiedTSPTask::ModifiedTSPTask(int cutoff)
@@ -49,13 +49,13 @@ bool ModifiedTSPTask::shouldPrune() const {
 }
 
 int ModifiedTSPTask::estimateLowerBound() const {
-    // Simple lower bound estimation
+    
     return _path.distance();
 }
 
 int ModifiedTSPTask::split(TaskCollection* collection) {
     if (_path.size() >= _cutoff_size) {
-        return 0; // Don't split, solve sequentially
+        return 0; 
     }
     
     if (shouldPrune()) {
@@ -79,7 +79,7 @@ int ModifiedTSPTask::split(TaskCollection* collection) {
 
 void ModifiedTSPTask::solve() {
     if (_path.size() == TSPPath::full()) {
-        // Complete path, close the loop
+       
         _path.push(TSPPath::FIRST_NODE);
         updateBestPath(_path);
         return;
@@ -89,7 +89,7 @@ void ModifiedTSPTask::solve() {
         return;
     }
     
-    // Recursively try all remaining cities
+    
     for (int i = 1; i < TSPPath::full(); ++i) {
         if (!_path.contains(i)) {
             _path.push(i);

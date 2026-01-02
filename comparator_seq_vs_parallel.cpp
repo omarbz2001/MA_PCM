@@ -5,6 +5,7 @@
 #include <string>
 #include "modified_tsptask.hpp"
 #include "parallel_task_runner.hpp"
+#include "tsptaskseq.hpp"
 
 
 
@@ -60,15 +61,15 @@ int main(int argc, char** argv) {
 
     // Run sequential version for comparison
     std::cout << "\nRunning sequential version..." << std::endl;
-        
-    ModifiedTSPTask* tsp_task_seq = new ModifiedTSPTask(cutoff);
-    DirectTaskRunner sequential_runner;
+    TSPPathSeq::setup(&graph);    
+    TSPTaskSeq* tsp_task_seq = new TSPTaskSeq(cutoff);
+    DirectTaskRunner2 sequential_runner;
     sequential_runner.run(tsp_task_seq);
         
     double sequential_time = sequential_runner.duration();
     std::cout << "Sequential time: " << sequential_time << " seconds\n";
         
-    TSPPath result_seq = tsp_task_seq->result();
+    TSPPathSeq result_seq = tsp_task_seq->result();
     std::cout << "Best path found (sequential): " << result_seq << std::endl;
 
     // Compare results
