@@ -1,5 +1,5 @@
-#ifndef TSPTASK_HPP
-#define TSPTASK_HPP
+#ifndef TSPTASKSEQ_HPP
+#define TSPTASKSEQ_HPP
 
 #include <bitset>
 #include <climits>
@@ -13,11 +13,12 @@
 #include "task.hpp"
 #include "lockfree_stack.hpp"
 
-class TSPPath;
+// Rename the class declaration and operator for the new class name
+class TSPPathSeq;
 
-std::ostream& operator<<(std::ostream& os, const TSPPath& t);
+std::ostream& operator<<(std::ostream& os, const TSPPathSeq& t);
 
-class TSPPath {
+class TSPPathSeq {
 public:
     static const int FIRST_NODE = 0;
     static const int MAX_GRAPH = 32;
@@ -36,7 +37,7 @@ public:
     static int full() { return _graph->size(); }
     static int graphDistance(int a, int b) { return _graph->distance(a, b); }
 
-    TSPPath() {
+    TSPPathSeq() {
         _node[0] = FIRST_NODE;
         _size = 1;
         _distance = 0;
@@ -78,7 +79,7 @@ public:
         os << "}";
     }
 
-    TSPPath& operator=(const TSPPath& other) {
+    TSPPathSeq& operator=(const TSPPathSeq& other) {
         if (this != &other) {
             _size = other._size;
             _distance = other._distance;
@@ -89,52 +90,53 @@ public:
     }
 };
 
-inline std::ostream& operator<<(std::ostream& os, const TSPPath& t) {
+// Adjusted operator for the renamed class
+inline std::ostream& operator<<(std::ostream& os, const TSPPathSeq& t) {
     t.write(os);
     return os;
 }
 
-class TSPTask : public Task {
+class TSPTaskSeq : public Task {
 private:
     // shared among all tasks
     static std::atomic<int> best_distance;
-    static TSPPath best_path;
+    static TSPPathSeq best_path;
     static std::mutex best_path_mutex;
 
     static int _cutoff_size;
 
-    TSPPath _path;
+    TSPPathSeq _path;
 
-    TSPTask() { throw std::runtime_error("Cannot construct TSPTask(void)"); }
+    TSPTaskSeq() { throw std::runtime_error("Cannot construct TSPTaskSeq(void)"); }
 
-    TSPTask(const TSPPath& path, int node)
+    TSPTaskSeq(const TSPPathSeq& path, int node)
         : _path(path) {
         _path.push(node);
     }
 
 public:
-    TSPTask(int cutoff) {
+    TSPTaskSeq(int cutoff) {
         best_distance.store(INT_MAX, std::memory_order_relaxed);
         best_path.maximise();
-        _cutoff_size = TSPPath::full() - cutoff;
+        _cutoff_size = TSPPathSeq::full() - cutoff;
 
         // Compute initial bound: path 0-1-2-...-n-0
-        TSPPath initial;
-        for (int i = 1; i < TSPPath::full(); ++i) {
+        TSPPathSeq initial;
+        for (int i = 1; i < TSPPathSeq::full(); ++i) {
             initial.push(i);
         }
-        initial.push(TSPPath::FIRST_NODE);
+        initial.push(TSPPathSeq::FIRST_NODE);
         best_distance.store(initial.distance(), std::memory_order_relaxed);
         best_path = initial;
     }
 
-    ~TSPTask() override = default;
+    ~TSPTaskSeq() override = default;
 
-    TSPPath result() {
+    TSPPathSeq result() {
         return best_path;
     }
 
-    static bool updateBestPath(const TSPPath& candidate) {
+    static bool updateBestPath(const TSPPathSeq& candidate) {
         int candidate_dist = candidate.distance();
         int current_best = best_distance.load(std::memory_order_acquire);
 
@@ -161,12 +163,12 @@ public:
 
         int current_best = best_distance.load(std::memory_order_acquire);
 
-        for (int i = 0; i < TSPPath::full(); ++i) {
+        for (int i = 0; i < TSPPathSeq::full(); ++i) {
             if (!_path.contains(i)) {
                 int new_dist = _path.distance()
-                            + TSPPath::graphDistance(_path.tail(), i);
+                            + TSPPathSeq::graphDistance(_path.tail(), i);
 
-                TSPTask* child = new TSPTask(_path, i);
+                TSPTaskSeq* child = new TSPTaskSeq(_path, i);
                 int childLeaves = child->remainingLeaves(true);
 
                 if (new_dist < current_best) {
@@ -182,19 +184,17 @@ public:
         return keptChildren;
     }
 
-
-
     int split(TaskCollection* collection) override {
         if (_path.size() >= _cutoff_size) return 0;
 
         int count = 0;
         int current_best = best_distance.load(std::memory_order_acquire);
 
-        for (int i = 0; i < TSPPath::full(); ++i) {
+        for (int i = 0; i < TSPPathSeq::full(); ++i) {
             if (!_path.contains(i)) {
-                int new_dist = _path.distance() + TSPPath::graphDistance(_path.tail(), i);
+                int new_dist = _path.distance() + TSPPathSeq::graphDistance(_path.tail(), i);
                 if (new_dist < current_best) {
-                    TSPTask* t = new TSPTask(_path, i);
+                    TSPTaskSeq* t = new TSPTaskSeq(_path, i);
                     collection->push(t);
                     ++count;
                 }
@@ -206,17 +206,17 @@ public:
     void merge(TaskCollection*) override {}
 
     void solve() override {
-        if (_path.size() == TSPPath::full()) {
-            _path.push(TSPPath::FIRST_NODE);
+        if (_path.size() == TSPPathSeq::full()) {
+            _path.push(TSPPathSeq::FIRST_NODE);
             if (_path.distance() < best_distance.load(std::memory_order_acquire)) {
                 updateBestPath(_path);
             }
             _path.pop();
         } else {
             int current_best = best_distance.load(std::memory_order_acquire);
-            for (int i = 0; i < TSPPath::full(); ++i) {
+            for (int i = 0; i < TSPPathSeq::full(); ++i) {
                 if (!_path.contains(i)) {
-                    int new_dist = _path.distance() + TSPPath::graphDistance(_path.tail(), i);
+                    int new_dist = _path.distance() + TSPPathSeq::graphDistance(_path.tail(), i);
                     if (new_dist < current_best) {
                         _path.push(i);
                         solve();
@@ -231,33 +231,28 @@ public:
     void write(std::ostream& os) const override {
         os << "Task" << _path;
     }
-    
-    int remainingLeaves(bool parentIncluded = false) const
-    {
+
+    int remainingLeaves(bool parentIncluded = false) const {
         int maxDepth = _cutoff_size - _path.size();
-        int n = TSPPath::full() - _path.size();
+        int n = TSPPathSeq::full() - _path.size();
 
         int sum = 0;
         int perm = 1;
 
-        for (int k = 1; k <= maxDepth && k <= n; ++k)
-        {
+        for (int k = 1; k <= maxDepth && k <= n; ++k) {
             perm *= (n - k + 1); // P(n,k)
             sum += perm;
         }
 
         return parentIncluded ? sum + 1 : sum;
     }
-
-
-
 };
 
 // static definitions
-TSPGraph* TSPPath::_graph = nullptr;
-std::atomic<int> TSPTask::best_distance{INT_MAX};
-TSPPath TSPTask::best_path;
-std::mutex TSPTask::best_path_mutex;
-int TSPTask::_cutoff_size = INT_MAX;
+TSPGraph* TSPPathSeq::_graph = nullptr;
+std::atomic<int> TSPTaskSeq::best_distance{INT_MAX};
+TSPPathSeq TSPTaskSeq::best_path;
+std::mutex TSPTaskSeq::best_path_mutex;
+int TSPTaskSeq::_cutoff_size = INT_MAX;
 
-#endif // TSPTASK_HPP
+#endif // TSPTASKSEQ_HPP

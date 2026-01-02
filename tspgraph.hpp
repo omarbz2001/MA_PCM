@@ -1,3 +1,5 @@
+#ifndef TSPGRAPH_HPP
+#define TSPGRAPH_HPP
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -110,8 +112,10 @@ private:
 	}
 };
 
-std::ostream& operator<<(std::ostream& os, const TSPGraph& t)
+inline std::ostream& operator<<(std::ostream& os, const TSPGraph& t)
 {
 	t.write(os);
 	return os;
 }
+
+#endif // TSPGRAPH_HPP
